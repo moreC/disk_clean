@@ -11,7 +11,7 @@ class CleanupPlanner:
         # 定义要删除的目录列表
         self.cleanup_items = [
             {
-                'name': 'Local\Temp 临时文件',
+                'name': r'Local\Temp 临时文件',
                 'path': os.path.expanduser('~\\AppData\\Local\\Temp'),
                 'expected_size': '~16 GB',
                 'priority': 'high'
@@ -55,13 +55,15 @@ class CleanupPlanner:
             return 0
         
         try:
-            # 使用PowerShell命令获取目录大小
-            cmd = f"powershell -Command ""Get-ChildItem -Path '{path}' -Recurse | Measure-Object -Property Length -Sum | Select-Object Sum"""
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            cmd = f"powershell -Command \"Get-ChildItem -Path '{path}' -Recurse -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum | Select-Object -ExpandProperty Sum\""
+            result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=30)
+            
             if result.stdout.strip():
-                # 解析输出
-                size_str = result.stdout.strip()
-                if 'Sum' in size_str:
-                    # 尝试提取数字
-                    import re
-                    match = re.search(r'Sum\s
+                try:
+                    size = float(result.stdout.strip())
+                    return int(size)
+                except ValueError:
+                    return 0
+            return 0
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError, Exception):
+            return 0
